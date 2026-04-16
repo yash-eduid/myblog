@@ -62,11 +62,36 @@ body {
 
 /* ─── Mermaid diagrams ─── */
 .mermaid-wrapper {
-  @apply my-8 flex justify-center overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/50 p-6;
+  @apply my-8 w-full max-w-full min-w-0 rounded-xl border border-slate-800 bg-slate-900/50 p-3 sm:p-4;
 }
 
-.mermaid-wrapper svg {
-  @apply max-w-full;
+.mermaid-toolbar {
+  @apply mb-3 flex items-center justify-end gap-2;
+}
+
+.mermaid-zoom-btn,
+.mermaid-fit-btn {
+  @apply inline-flex items-center justify-center rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-slate-300 transition-colors hover:border-brand-700 hover:text-brand-300;
+}
+
+.mermaid-fit-btn {
+  @apply gap-1.5 text-xs font-medium;
+}
+
+.mermaid-zoom-readout {
+  @apply min-w-14 text-center text-xs font-mono text-slate-400;
+}
+
+.mermaid-viewport {
+  @apply w-full max-w-full min-w-0 overflow-auto rounded-lg border border-slate-800/70 bg-surface-900/80 p-3;
+}
+
+.mermaid-canvas {
+  @apply mx-auto;
+}
+
+.mermaid-svg-host svg {
+  @apply block;
 }
 
 /* ─── Prose overrides ─── */

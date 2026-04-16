@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Clock, Calendar, Tag } from 'lucide-react';
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateStaticParams() {
@@ -19,7 +19,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const post = getPostBySlug(params.slug);
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
   if (!post) return {};
   return {
     title: post.title,
@@ -36,26 +37,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PostPage({ params }: Props) {
-  const post = getPostBySlug(params.slug);
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
   if (!post) notFound();
 
   const { content, toc } = await compileMDX(post.rawContent);
-  const { prev, next } = getAdjacentPosts(params.slug);
-  const url = `https://niteenbadgujar.me/blog/${params.slug}`;
+  const { prev, next } = getAdjacentPosts(slug);
+  const url = `https://niteenbadgujar.me/blog/${slug}`;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Back link */}
       <Link
         href="/blog"
-        className="inline-flex items-center gap-2 text-slate-400 hover:text-brand-400 text-sm mb-10 transition-colors"
+        className="mt-4 inline-flex items-center gap-2 text-slate-400 hover:text-brand-400 text-sm mb-10 transition-colors sm:mt-6"
       >
         <ArrowLeft className="w-4 h-4" /> Back to all articles
       </Link>
 
       <div className="lg:grid lg:grid-cols-[1fr_260px] lg:gap-12 xl:gap-16">
         {/* ─── Main content ─── */}
-        <article>
+        <article className="min-w-0">
           {/* Header */}
           <header className="mb-10">
             {/* Tags */}

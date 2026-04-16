@@ -1,4 +1,6 @@
-import { compileMDX as compileMDXRemote } from 'next-mdx-remote/rsc';
+import { evaluate } from '@mdx-js/mdx';
+import React from 'react';
+import * as runtime from 'react/jsx-runtime';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
@@ -29,27 +31,24 @@ export async function compileMDX(source: string): Promise<{
 }> {
   const toc = extractToc(source);
 
-  const { content } = await compileMDXRemote({
-    source,
-    components: mdxComponents as Record<string, React.ComponentType>,
-    options: {
-      parseFrontmatter: false,
-      mdxOptions: {
-        remarkPlugins: [remarkGfm],
-        rehypePlugins: [
-          rehypeSlug,
-          [
-            rehypeAutolinkHeadings,
-            {
-              behavior: 'wrap',
-              properties: { className: ['anchor'] },
-            },
-          ],
-          [rehypePrettyCode, prettyCodeOptions],
-        ],
-      },
-    },
+  const evaluated = await evaluate(source, {
+    ...runtime,
+    remarkPlugins: [remarkGfm],
+    rehypePlugins: [
+      rehypeSlug,
+      [
+        rehypeAutolinkHeadings,
+        {
+          behavior: 'wrap',
+          properties: { className: ['anchor'] },
+        },
+      ],
+      [rehypePrettyCode, prettyCodeOptions],
+    ],
   });
+
+  const MDXContent = evaluated.default as React.ComponentType<{ components?: typeof mdxComponents }>;
+  const content = React.createElement(MDXContent, { components: mdxComponents });
 
   return { content, toc };
 }

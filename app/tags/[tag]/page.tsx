@@ -5,7 +5,7 @@ import { getAllPosts } from '@/lib/posts';
 import PostCard from '@/components/PostCard';
 import { ArrowLeft, Tag } from 'lucide-react';
 
-interface Props { params: { tag: string }; }
+interface Props { params: Promise<{ tag: string }>; }
 
 export async function generateStaticParams() {
   const posts = getAllPosts();
@@ -14,18 +14,20 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  return { title: `#${params.tag}`, description: `Articles tagged with ${params.tag}.` };
+  const { tag } = await params;
+  return { title: `#${tag}`, description: `Articles tagged with ${tag}.` };
 }
 
-export default function TagPage({ params }: Props) {
+export default async function TagPage({ params }: Props) {
+  const { tag } = await params;
   const allPosts = getAllPosts();
   const posts = allPosts.filter((p) =>
-    p.tags.some((t) => t.toLowerCase().replace(/\s+/g, '-') === params.tag)
+    p.tags.some((t) => t.toLowerCase().replace(/\s+/g, '-') === tag)
   );
 
   if (posts.length === 0) notFound();
 
-  const displayTag = posts[0].tags.find((t) => t.toLowerCase().replace(/\s+/g, '-') === params.tag) || params.tag;
+  const displayTag = posts[0].tags.find((t) => t.toLowerCase().replace(/\s+/g, '-') === tag) || tag;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">

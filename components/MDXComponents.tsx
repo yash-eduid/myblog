@@ -1,28 +1,42 @@
 import type { MDXComponents } from 'mdx/types';
+import { isValidElement } from 'react';
 import MermaidDiagram from './MermaidDiagram';
-import CodeBlock from './CodeBlock';
 import { Info, AlertTriangle, Lightbulb, AlertCircle } from 'lucide-react';
 
 type CalloutType = 'info' | 'warning' | 'tip' | 'danger';
 
-const CALLOUT_ICONS: Record<CalloutType, React.ReactNode> = {
-  info: <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />,
-  warning: <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />,
-  tip: <Lightbulb className="w-4 h-4 flex-shrink-0 mt-0.5" />,
-  danger: <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />,
+const CALLOUT_ICONS: Record<CalloutType, React.ComponentType<{ className?: string }>> = {
+  info: Info,
+  warning: AlertTriangle,
+  tip: Lightbulb,
+  danger: AlertCircle,
 };
 
 export function Callout({ type = 'info', children }: { type?: CalloutType; children: React.ReactNode }) {
+  const Icon = CALLOUT_ICONS[type];
   return (
     <div className={`callout callout-${type} not-prose`}>
-      {CALLOUT_ICONS[type]}
+      <Icon className="w-4 h-4 flex-shrink-0 mt-0.5" />
       <div className="text-sm leading-relaxed">{children}</div>
     </div>
   );
 }
 
-export function Mermaid({ children }: { children: string }) {
-  return <MermaidDiagram chart={children} />;
+function toText(node: React.ReactNode): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map((item) => toText(item)).join('');
+  if (isValidElement(node)) return toText((node.props as { children?: React.ReactNode }).children);
+  return '';
+}
+
+export function Mermaid({ children }: { children: React.ReactNode }) {
+  const chart = toText(children)
+    .replace(/\r\n/g, '\n')
+    // MDX can collapse whitespace between text nodes, which breaks Mermaid style lines.
+    .replace(/([\]\)])\s*style\s+/g, '$1\nstyle ')
+    .trim();
+  return <MermaidDiagram chart={chart} />;
 }
 
 export const mdxComponents: MDXComponents = {
@@ -30,15 +44,9 @@ export const mdxComponents: MDXComponents = {
   Callout,
   Mermaid,
 
-  // Override pre/code for syntax highlighting + copy button
+  // Render pre blocks directly to avoid client-boundary serialization issues in Next 16.
   pre: ({ children, ...props }: React.ComponentProps<'pre'> & { 'data-language'?: string; raw?: string }) => {
-    const language = props['data-language'];
-    const raw = props.raw;
-    return (
-      <CodeBlock language={language} raw={raw}>
-        <pre {...props}>{children}</pre>
-      </CodeBlock>
-    );
+    return <pre {...props}>{children}</pre>;
   },
 
   // Style headings with anchor links
