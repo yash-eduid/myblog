@@ -25,7 +25,7 @@ export function Callout({ type = 'info', children }: { type?: CalloutType; child
 function toText(node: React.ReactNode): string {
   if (node === null || node === undefined || typeof node === 'boolean') return '';
   if (typeof node === 'string' || typeof node === 'number') return String(node);
-  if (Array.isArray(node)) return node.map((item) => toText(item)).join('');
+  if (Array.isArray(node)) return node.map((item) => toText(item)).join('\n');
   if (isValidElement(node)) return toText((node.props as { children?: React.ReactNode }).children);
   return '';
 }
@@ -33,6 +33,8 @@ function toText(node: React.ReactNode): string {
 export function Mermaid({ children }: { children: React.ReactNode }) {
   const chart = toText(children)
     .replace(/\r\n/g, '\n')
+    // Ensure edges don't get concatenated when MDX splits children into multiple nodes.
+    .replace(/([\]\)])([A-Za-z0-9_]+\s*-->)/g, '$1\n$2')
     // MDX can collapse whitespace between text nodes, which breaks Mermaid style lines.
     // Handle both `]style`/`)style` and plain node-id joins like `REPstyle`.
     .replace(/([A-Za-z0-9_\]\)])\s*style\s+/g, '$1\nstyle ')
