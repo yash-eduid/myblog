@@ -1,0 +1,164 @@
+---
+title: "Configuring Claude Code with Azure AI Foundry: A Practical Step-by-Step Guide"
+date: "2026-01-10"
+description: "A practical walkthrough to connect Claude Code to Azure AI Foundry using API keys and environment variables, then verify it inside VS Code."
+tags: ["Claude Code", "Azure AI Foundry", "Azure", "Developer Tools", "AI"]
+featured: false
+originalUrl: "https://medium.com/@niteen.badgujar/configuring-claude-code-with-azure-ai-foundry-a-step-by-step-guide-208b46b608da"
+---
+
+If you prefer running Claude Code against enterprise-managed Azure endpoints instead of a direct Anthropic account flow, Azure AI Foundry is a clean way to do it.
+
+This guide shows a practical setup on Windows so Claude Code can use your Azure-hosted model deployment through environment variables.
+
+<Callout type="info">
+This setup uses API-key based auth for speed. For team environments, consider managed identity or secret stores instead of persisting long-lived keys directly in user environment variables.
+</Callout>
+
+## What You Will Configure
+
+At a high level, Claude Code will read three values from your environment:
+
+- `ANTHROPIC_API_KEY`
+- `ANTHROPIC_BASE_URL`
+- `ANTHROPIC_DEFAULT_MODEL`
+
+Once these are set correctly, Claude Code can send requests to the model endpoint you deployed in Azure AI Foundry.
+
+<Mermaid>
+flowchart LR
+    CC[Claude Code CLI] -->|Anthropic-compatible request| AZ[Azure AI Foundry Endpoint]
+    AZ --> MD[(Deployed Model)]
+
+    style CC fill:#0d3152,stroke:#0d8ce0,color:#e2e8f0
+    style AZ fill:#134f7b,stroke:#25a8f8,color:#fff
+    style MD fill:#151d38,stroke:#8b5cf6,color:#e2e8f0
+</Mermaid>
+
+## 1. Prerequisites
+
+Before starting, verify:
+
+- Windows machine with terminal access
+- Node.js and npm installed
+- Access to Azure AI Foundry project and model deployment
+
+Quick checks:
+
+```bash
+node -v
+npm -v
+```
+
+If either command fails, install Node.js first and re-open your terminal.
+
+## 2. Install Claude Code
+
+Install the CLI globally:
+
+```bash
+npm install -g claude-code
+```
+
+Then run:
+
+```bash
+claude
+```
+
+On first launch, choose your preferred UI theme and exit back to terminal.
+
+## 3. Deploy or Confirm a Model in Azure AI Foundry
+
+In Azure AI Foundry:
+
+1. Open your project.
+2. Deploy the model you want Claude Code to use.
+3. Copy the endpoint base URL and API key.
+4. Note the model name/deployment identifier you plan to set as default.
+
+<Callout type="warning">
+The exact endpoint format and model identifier can vary by deployment configuration. Use the values shown for your specific deployment in Foundry, not guessed strings.
+</Callout>
+
+## 4. Set Environment Variables (Windows)
+
+Use `setx` in Command Prompt or PowerShell (Windows persists these for new shells):
+
+```bash
+setx ANTHROPIC_API_KEY "<your-foundry-api-key>"
+setx ANTHROPIC_BASE_URL "<your-foundry-base-url>"
+setx ANTHROPIC_DEFAULT_MODEL "<your-model-name>"
+```
+
+Important details:
+
+- `setx` does not update the current shell session.
+- Close and reopen your terminal after setting values.
+- Keep the API key secret and rotate it regularly.
+
+To verify in a new terminal:
+
+```powershell
+$env:ANTHROPIC_API_KEY
+$env:ANTHROPIC_BASE_URL
+$env:ANTHROPIC_DEFAULT_MODEL
+```
+
+## 5. Test Claude Code Connection
+
+Start Claude Code again:
+
+```bash
+claude
+```
+
+If configuration is correct, Claude Code should use your Azure-backed endpoint without requiring Anthropic subscription login.
+
+Simple test prompt:
+
+```text
+Explain in 5 bullets how to structure a Python project for a REST API.
+```
+
+## 6. Use It from VS Code
+
+Typical flow:
+
+1. Open a project folder in VS Code.
+2. Open integrated terminal.
+3. Run `claude`.
+4. Give a constrained prompt for first validation.
+
+Example:
+
+```text
+Generate a single Python file that adds two numbers from user input. Do not create any additional files.
+```
+
+This validates both CLI operation and model response behavior in your coding workflow.
+
+## Troubleshooting
+
+### CLI still asks for login
+
+- Recheck variable names exactly.
+- Confirm you restarted terminal after `setx`.
+- Ensure no conflicting variables are overriding values.
+
+### Auth or endpoint errors
+
+- Verify API key is active.
+- Confirm base URL matches your Foundry deployment endpoint.
+- Confirm the default model identifier exists in your project.
+
+### Works in one shell, fails in another
+
+- Some terminals inherit different environment scopes.
+- Re-open VS Code after setting global environment variables.
+
+## Final Notes
+
+Using Azure AI Foundry with Claude Code is a strong option when you want centralized deployment governance, consistent endpoint management, and integration with your Azure environment.
+
+After this baseline setup works, the next step is to standardize your team setup using scripts, secret management, and environment profiles per project.

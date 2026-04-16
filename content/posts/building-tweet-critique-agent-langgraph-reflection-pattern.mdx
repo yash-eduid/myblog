@@ -1,0 +1,116 @@
+---
+title: "Building a Tweet Critique Agent with LangGraph Reflection Pattern"
+date: "2025-12-07"
+description: "A compact agent loop that separates generation from critique, iteratively improves tweets, and stops safely using a termination heuristic."
+tags: ["Agentic AI", "LangGraph", "AI Agent", "Content Generation", "Reflection Pattern"]
+featured: false
+originalUrl: "https://medium.com/@niteen.badgujar/building-a-tweet-critique-agent-with-langgraphs-reflection-pattern-7c6819bccf00"
+---
+
+Most tweet generators produce a single draft. If it is weak, you regenerate manually and hope for a better one.
+
+A reflection agent loop is a better pattern: generate, critique, revise, and stop when quality is good enough.
+
+## Why Reflection Beats One-Shot Generation
+
+A one-shot flow usually fails on consistency:
+
+- Hooks are generic
+- Call-to-action is weak
+- Structure varies across drafts
+
+With reflection, the system can carry forward targeted feedback between iterations instead of restarting from zero context.
+
+## Agent Design
+
+This implementation uses two explicit roles:
+
+1. Generator: drafts or revises the tweet.
+2. Critic: returns concrete, actionable feedback.
+
+The critic's output is fed back as a message into the next generation turn.
+
+<Mermaid>
+flowchart TD
+    U([User Intent]) --> G[Generator Agent]
+    G --> C[Critic Agent]
+    C --> D[/Stop?/]
+    D -- No --> G
+    D -- Yes --> O([Final Tweet + History])
+
+    style U fill:#0d3152,stroke:#0d8ce0,color:#e2e8f0
+    style G fill:#134f7b,stroke:#25a8f8,color:#fff
+    style C fill:#151d38,stroke:#8b5cf6,color:#e2e8f0
+    style O fill:#0d3152,stroke:#0d8ce0,color:#e2e8f0
+</Mermaid>
+
+## LangGraph Loop Pattern
+
+LangGraph makes this clean because you can model the loop as a graph with conditional edges.
+
+```python
+from langgraph.graph import StateGraph, START, END
+
+def should_stop(state):
+    # example heuristic: stop after N turns or if score threshold is reached
+    if state["iteration"] >= 4:
+        return "end"
+    if state.get("quality_score", 0) >= 0.9:
+        return "end"
+    return "continue"
+
+builder = StateGraph(dict)
+builder.add_node("generate", generate_tweet)
+builder.add_node("critique", critique_tweet)
+
+builder.add_edge(START, "generate")
+builder.add_edge("generate", "critique")
+builder.add_conditional_edges("critique", should_stop, {
+    "continue": "generate",
+    "end": END,
+})
+
+graph = builder.compile()
+```
+
+## Practical Stopping Heuristics
+
+Do not leave the loop open-ended. Use one or more of these:
+
+- Max iterations (for example 3-5)
+- Character-budget compliance (for example less than 220)
+- CTA present or not
+- Hook strength score threshold
+
+<Callout type="warning">
+Without explicit stop rules, reflection loops can over-optimize and degrade readability. Add hard limits from day one.
+</Callout>
+
+## What Improves Most in Practice
+
+In repeated tests, reflection most often improved:
+
+- Hook clarity in first 7-10 words
+- Stronger action-oriented ending
+- Better formatting for short-form reading
+- Less passive language
+
+## Optional Next Iterations
+
+Once the basic loop works, useful extensions are:
+
+- Multi-variant generation (question, stat, hot-take)
+- Thread mode (tweet + follow-up)
+- Lightweight ranker to select best revision
+- Media prompt suggestions (thumbnail/GIF guidance)
+
+## Open Source Reference
+
+Code repository:
+
+- https://github.com/imniteen/Reflection-Tweet-Critique-Agent
+
+## Related Reading
+
+- [Plan-Review-Execute with Human Approval](./plan-review-execute-human-in-the-loop-agent-langgraph)
+- [Production-Grade Agentic AI on Azure](./production-grade-architecture-agentic-ai-azure)

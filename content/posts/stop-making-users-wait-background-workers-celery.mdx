@@ -1,0 +1,117 @@
+---
+title: "Stop Making Users Wait: Why Your API Needs Background Workers"
+date: "2026-03-18"
+description: "How to move long-running API work to asynchronous workers with Celery so user-facing endpoints stay fast, resilient, and scalable."
+tags: ["Backend", "Celery", "FastAPI", "Scalability", "Background Processing"]
+featured: false
+originalUrl: "https://medium.com/@niteen.badgujar/stop-making-users-wait-why-your-api-needs-background-workers-cdb95d7e5833"
+---
+
+If your API does OCR, report generation, AI inference, or heavy data transforms inside a request-response path, users are waiting too long.
+
+The fix is architectural: accept quickly, queue work, process asynchronously.
+
+## The Synchronous Trap
+
+Long operations inside request handlers create recurring failures:
+
+- Timeouts at client/load-balancer boundaries
+- Thread/process blocking under concurrent load
+- No reliable retries on transient failures
+- Duplicate requests when users refresh
+
+A 2-minute task does not belong in a 30-second HTTP window.
+
+## Task Queue Pattern
+
+The async pattern is simple:
+
+1. API validates request.
+2. API stores task metadata.
+3. API queues job and returns immediately.
+4. Worker executes job out-of-band.
+5. Client polls status or receives callback.
+
+<Mermaid>
+flowchart LR
+    U[Client] --> API[API Producer]
+    API --> B[(Redis/RabbitMQ Broker)]
+    B --> W[Celery Worker]
+    W --> R[(Results/DB)]
+    U --> S[Status Endpoint]
+    S --> R
+
+    style API fill:#134f7b,stroke:#25a8f8,color:#fff
+    style B fill:#151d38,stroke:#8b5cf6,color:#e2e8f0
+    style W fill:#0d3152,stroke:#0d8ce0,color:#e2e8f0
+</Mermaid>
+
+## Minimal Celery Setup
+
+```python
+from celery import Celery
+
+celery_app = Celery(
+    "worker",
+    broker="redis://localhost:6379/0",
+    backend="redis://localhost:6379/1",
+)
+
+@celery_app.task(bind=True, max_retries=3)
+def process_document_task(self, document_id: str):
+    try:
+        document = get_document(document_id)
+        result = analyze_document(document)
+        save_result(document_id, result)
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=60)
+```
+
+Queue from API:
+
+```python
+@router.post("/upload")
+async def upload(file: UploadFile, db: AsyncSession = Depends(get_db)):
+    document = await save_file(file, db)
+    process_document_task.delay(str(document.id))
+    return {"id": str(document.id), "status": "queued"}
+```
+
+Run worker:
+
+```bash
+celery -A app.tasks worker --loglevel=info --concurrency=4
+```
+
+## Production Benefits
+
+- Responsive UX: immediate acknowledgment
+- Independent scaling: workers separate from API pods
+- Fault tolerance: retries and re-delivery
+- Resource isolation: CPU-heavy jobs away from request path
+- Prioritization: queue classes for critical work
+
+## Trade-offs to Plan For
+
+Background workers add distributed-system complexity:
+
+- More services to run (broker/result store)
+- Visibility needed across queue and worker states
+- Idempotency required to avoid duplicate side effects
+
+<Callout type="info">
+For very small apps, lightweight alternatives can be enough. For reliability at scale, Celery remains a practical default in Python ecosystems.
+</Callout>
+
+## Implementation Checklist
+
+- Add idempotency keys
+- Add retry/backoff policies per task type
+- Store task status in DB for frontend polling
+- Add dead-letter strategy for poisoned messages
+- Track queue depth and worker lag in monitoring
+
+## Related Reading
+
+- [Plan-Review-Execute with Human Approval](./plan-review-execute-human-in-the-loop-agent-langgraph)
+- [Production-Grade Agentic AI on Azure](./production-grade-architecture-agentic-ai-azure)

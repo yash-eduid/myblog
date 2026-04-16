@@ -34,7 +34,8 @@ export function Mermaid({ children }: { children: React.ReactNode }) {
   const chart = toText(children)
     .replace(/\r\n/g, '\n')
     // MDX can collapse whitespace between text nodes, which breaks Mermaid style lines.
-    .replace(/([\]\)])\s*style\s+/g, '$1\nstyle ')
+    // Handle both `]style`/`)style` and plain node-id joins like `REPstyle`.
+    .replace(/([A-Za-z0-9_\]\)])\s*style\s+/g, '$1\nstyle ')
     .trim();
   return <MermaidDiagram chart={chart} />;
 }

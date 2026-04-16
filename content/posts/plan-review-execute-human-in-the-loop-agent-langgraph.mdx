@@ -1,0 +1,138 @@
+---
+title: "Plan It. Review It. Execute It: Building a Human-in-the-Loop Agent with LangGraph"
+date: "2026-03-24"
+description: "A practical architecture for AI agents that pause for human approval, support replanning, and execute safely with checkpointed state."
+tags: ["LangGraph", "Human in the Loop", "Agentic AI", "Workflow", "AI Safety"]
+featured: false
+originalUrl: "https://medium.com/@niteen.badgujar/plan-it-review-it-execute-it-building-a-human-in-the-loop-ai-agent-with-langgraph-c77aa41bcc74"
+---
+
+A lot of agent demos follow this path: user asks, model decides, tools execute immediately.
+
+That is fine for low-risk tasks. It is dangerous for workflows that touch production systems, money, customer records, or critical operations.
+
+The safer pattern is:
+
+- Plan
+- Review
+- Execute
+- Validate
+- Report
+
+## Core Pattern
+
+The key design choice is a hard pause before execution, not a soft conversational confirmation.
+
+<Mermaid>
+flowchart TD
+    I[Intake] --> P[Plan]
+    P --> R[Review / Human Approval]
+    R -->|Approve| E[Execute]
+    R -->|Modify| RP[Replan]
+    RP --> R
+    R -->|Reject| REP[Report]
+    E --> V[Validate]
+    V --> REP
+
+    style R fill:#151d38,stroke:#8b5cf6,color:#e2e8f0
+    style E fill:#134f7b,stroke:#25a8f8,color:#fff
+    style V fill:#0d3152,stroke:#0d8ce0,color:#e2e8f0
+</Mermaid>
+
+## Why LangGraph Fits This Well
+
+LangGraph gives three capabilities that map directly to this problem:
+
+- `interrupt()` to freeze execution for human input
+- Checkpointing to persist and resume state later
+- Conditional edges for approve/modify/reject routing
+
+## Graph Skeleton
+
+```python
+from langgraph.graph import START, END, StateGraph
+
+builder = StateGraph(AgentState)
+
+builder.add_node("intake", intake.run)
+builder.add_node("plan", plan.run)
+builder.add_node("review", review.run)
+builder.add_node("replan", replan.run)
+builder.add_node("execute", execute.run)
+builder.add_node("validate", validate.run)
+builder.add_node("report", report.run)
+
+builder.add_edge(START, "intake")
+builder.add_edge("intake", "plan")
+builder.add_edge("plan", "review")
+
+builder.add_conditional_edges("review", route_after_review, {
+    "execute": "execute",
+    "replan": "replan",
+    "report": "report",
+})
+
+builder.add_edge("replan", "review")
+builder.add_conditional_edges("execute", should_continue_execution, {
+    "execute": "execute",
+    "validate": "validate",
+})
+
+builder.add_edge("validate", "report")
+builder.add_edge("report", END)
+```
+
+## The Hard Pause with interrupt()
+
+```python
+from langgraph.types import interrupt
+
+async def run_review(state: AgentState):
+    human_response = interrupt({
+        "type": "plan_review",
+        "plan": state["plan"],
+        "message": "Approve, modify, or reject this plan.",
+    })
+
+    return {
+        "user_decision": human_response["decision"],
+        "user_feedback": human_response.get("feedback", ""),
+    }
+```
+
+What matters here: the graph is actually paused, state is persisted, and execution resumes only when a human response is passed back.
+
+## Safety Controls That Matter
+
+A human approval gate is necessary but not sufficient. Also add:
+
+- Circuit breaker (for example stop after 3 execution errors)
+- Step-level timeout and retry policy
+- Structured output schemas for plan and report
+- Validation phase with explicit success criteria
+- Full execution audit trail
+
+<Callout type="warning">
+A chat-based "Are you sure?" prompt is not equivalent to an architectural pause. Persisted interruption is the difference between demo safety and production safety.
+</Callout>
+
+## Adapting Across Domains
+
+The same graph works in multiple settings:
+
+- DevOps: deployment or failover plans
+- Legal: contract revision workflows
+- Healthcare: treatment-plan proposal and approval
+- Finance: strategy planning before execution
+- Data engineering: schema-change approval flows
+
+Swap tools and state schema. Keep the control structure.
+
+## Repository Reference
+
+- https://github.com/imniteen/Plan-Validate-Execute-AIAgents
+
+## Related Reading
+
+- [Building a Tweet Critique Agent](./building-tweet-critique-agent-langgraph-reflection-pattern)
+- [Stop Making Users Wait with Background Workers](./stop-making-users-wait-background-workers-celery)
