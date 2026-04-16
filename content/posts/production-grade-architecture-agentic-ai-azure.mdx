@@ -1,0 +1,248 @@
+---
+title: "A Production-Grade Architecture for Agentic AI Systems on Microsoft Azure"
+date: "2025-09-22"
+description: "A deep-dive into designing, deploying, and operating multi-agent AI systems on Microsoft Azure — covering orchestration, memory, tool integration, observability, and cost controls."
+tags: ["Agentic AI", "Azure", "LLM", "Architecture", "Production"]
+featured: true
+originalUrl: "https://medium.com/@niteen.badgujar/a-production-grade-architecture-for-agentic-ai-systems-on-microsoft-azure-bb45dccd2b62"
+---
+
+Building a chatbot that answers questions is straightforward. Building an **agentic AI system** that plans multi-step tasks, calls external tools, maintains memory across sessions, and stays within budget while running reliably in production — that's an engineering challenge of a completely different order.
+
+This article walks through the end-to-end architecture I use to ship production-grade Agentic AI systems on Microsoft Azure.
+
+<Callout type="info">
+This architecture assumes Azure OpenAI as the LLM provider, but the patterns apply broadly to any cloud + LLM combination.
+</Callout>
+
+## What Is an Agentic AI System?
+
+An agentic system is one where an LLM doesn't just respond to a single prompt — it **reasons, plans, and takes actions** across multiple steps. The model decides *which tools to call*, *in what order*, and *when the task is complete*.
+
+A minimal agent loop looks like this:
+
+<Mermaid>
+flowchart TD
+    A([User Input]) --> B[Orchestrator / Planner]
+    B --> C[/Tool Needed?/]
+    C -- Yes --> D[Tool Router]
+    D --> E[Tool Execution]
+    E --> F[Result]
+    F --> B
+    C -- No --> G[Final Response]
+    G --> H([User])
+
+    style A fill:#0d3152,stroke:#0d8ce0,color:#e2e8f0
+    style H fill:#0d3152,stroke:#0d8ce0,color:#e2e8f0
+    style B fill:#151d38,stroke:#4e6088,color:#e2e8f0
+    style G fill:#134f7b,stroke:#0d8ce0,color:#e2e8f0
+</Mermaid>
+
+## Core Architectural Layers
+
+### 1. Orchestration Layer
+
+The orchestration layer is the brain of the system. It receives the user request, maintains the conversation context, decides which agents or tools to invoke, and assembles the final response.
+
+On Azure, I use **Azure AI Foundry** with the **Semantic Kernel** SDK as the primary orchestration framework.
+
+```python
+import asyncio
+from semantic_kernel import Kernel
+from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
+from semantic_kernel.agents import ChatCompletionAgent
+
+kernel = Kernel()
+kernel.add_service(
+    AzureChatCompletion(
+        deployment_name="gpt-4o",
+        endpoint="https://your-resource.openai.azure.com",
+        api_key="YOUR_API_KEY",
+    )
+)
+
+agent = ChatCompletionAgent(
+    service_id="default",
+    kernel=kernel,
+    name="OrchestratorAgent",
+    instructions="""
+    You are an orchestrator agent. Analyze the user's request,
+    break it into sub-tasks, and delegate to the appropriate tools or sub-agents.
+    Always verify your outputs before returning to the user.
+    """,
+)
+```
+
+### 2. Memory Architecture
+
+Agentic systems need multiple types of memory:
+
+| Memory Type | Storage | Use Case |
+|---|---|---|
+| Working memory | In-context (LLM) | Current task state |
+| Episodic memory | Azure Cosmos DB | Conversation history |
+| Semantic memory | Azure AI Search (vector) | Domain knowledge, docs |
+| Procedural memory | Prompt templates | How to do things |
+
+For vector search, I use **Azure AI Search** with hybrid retrieval:
+
+```python
+from azure.search.documents import SearchClient
+from azure.search.documents.models import VectorizedQuery
+
+def hybrid_search(query: str, embedding: list[float], top_k: int = 5):
+    vector_query = VectorizedQuery(
+        vector=embedding,
+        k_nearest_neighbors=top_k,
+        fields="content_vector"
+    )
+    results = search_client.search(
+        search_text=query,           # BM25 keyword search
+        vector_queries=[vector_query], # Semantic vector search
+        query_type="semantic",
+        semantic_configuration_name="my-semantic-config",
+        top=top_k,
+        select=["id", "content", "source", "title"]
+    )
+    return [r for r in results]
+```
+
+### 3. Tool Integration Layer
+
+Agents need tools to act on the world. I structure tools as **Azure Functions** for serverless scalability:
+
+```python
+# Tool definition for the agent
+from semantic_kernel.functions import kernel_function
+
+class WebSearchPlugin:
+    @kernel_function(
+        name="search_web",
+        description="Search the web for recent information on a given topic"
+    )
+    async def search(self, query: str) -> str:
+        """Execute a web search and return formatted results."""
+        # Call Azure Bing Search API
+        results = await bing_search_client.search(query)
+        return format_search_results(results)
+
+class DatabasePlugin:
+    @kernel_function(
+        name="query_database",
+        description="Query the product database for inventory or pricing information"
+    )
+    async def query(self, sql: str) -> str:
+        """Execute a read-only SQL query."""
+        # Validate query is SELECT-only before execution
+        if not sql.strip().upper().startswith("SELECT"):
+            raise ValueError("Only SELECT queries are permitted")
+        results = await db.execute(sql)
+        return results.to_json()
+```
+
+### 4. Multi-Agent Coordination
+
+For complex tasks, I use a **hub-and-spoke** multi-agent pattern:
+
+<Mermaid>
+flowchart TB
+    User([User]) --> Hub[Hub Agent / Orchestrator]
+    Hub --> RA[Research Agent]
+    Hub --> CA[Code Agent]
+    Hub --> DA[Data Analysis Agent]
+    Hub --> WA[Writing Agent]
+    RA --> VDB[(Azure AI Search)]
+    CA --> GH[GitHub / Code Executor]
+    DA --> SQL[(Azure SQL / Cosmos)]
+    WA --> Hub
+    RA --> Hub
+    CA --> Hub
+    DA --> Hub
+
+    style User fill:#0d3152,stroke:#0d8ce0,color:#e2e8f0
+    style Hub fill:#134f7b,stroke:#25a8f8,color:#fff
+</Mermaid>
+
+### 5. Observability & Guardrails
+
+Production agentic systems need comprehensive observability. I use **Azure Monitor + Application Insights** with structured logging:
+
+```python
+from azure.monitor.opentelemetry import configure_azure_monitor
+from opentelemetry import trace
+
+configure_azure_monitor(connection_string="YOUR_CONNECTION_STRING")
+tracer = trace.get_tracer(__name__)
+
+async def agent_step(step_name: str, input_data: dict):
+    with tracer.start_as_current_span(f"agent.{step_name}") as span:
+        span.set_attribute("agent.step", step_name)
+        span.set_attribute("agent.input_tokens", count_tokens(input_data))
+        
+        result = await execute_step(input_data)
+        
+        span.set_attribute("agent.output_tokens", count_tokens(result))
+        span.set_attribute("agent.success", True)
+        return result
+```
+
+**Key guardrails to implement:**
+
+- **Token budget enforcement** — hard stop at 80% of context window
+- **Tool call limits** — max 15 tool calls per task to prevent loops
+- **Content safety** — Azure AI Content Safety on all inputs/outputs
+- **Rate limiting** — per-user and per-agent call limits
+- **Timeout handling** — async timeouts on all external calls
+
+## Cost Management
+
+Agentic systems can burn tokens at alarming rates. Here's how I keep costs predictable:
+
+```python
+class TokenBudget:
+    def __init__(self, max_tokens: int = 50_000):
+        self.max_tokens = max_tokens
+        self.used = 0
+
+    def can_proceed(self, estimated_tokens: int) -> bool:
+        return (self.used + estimated_tokens) <= self.max_tokens
+
+    def consume(self, tokens: int):
+        self.used += tokens
+        if self.used > self.max_tokens * 0.9:
+            logger.warning(f"Token budget at {self.used}/{self.max_tokens}")
+```
+
+## Deployment Architecture
+
+```
+Azure Container Apps (agents)
+    ├── Orchestrator Service
+    ├── Tool Router Service
+    └── Memory Manager Service
+
+Azure AI Foundry
+    └── GPT-4o deployment
+
+Azure AI Search
+    └── Knowledge base index
+
+Azure Cosmos DB
+    └── Conversation history
+
+Azure Service Bus
+    └── Async tool execution queue
+
+Azure Key Vault
+    └── API keys + secrets
+```
+
+## Key Takeaways
+
+1. **Separate orchestration from execution** — keep your orchestrator thin and your tools stateless
+2. **Design for failure** — every tool call can fail; build retry logic and graceful degradation
+3. **Observe everything** — you can't debug what you can't see; log every agent step
+4. **Budget aggressively** — set hard token and API call limits from day one
+5. **Test with adversarial inputs** — agents are especially vulnerable to prompt injection
+
+The shift from LLM-powered features to full agentic systems requires a shift in engineering mindset. Think less about "prompting" and more about **distributed systems with an LLM at the center**.

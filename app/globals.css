@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: 'Inter', system-ui, sans-serif;
+  --font-jetbrains: 'JetBrains Mono', monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-surface-900 text-slate-300 antialiased;
+}
+
+/* ─── Custom scrollbar ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-surface-900; }
+::-webkit-scrollbar-thumb { @apply bg-slate-700 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-500; }
+
+/* ─── Shiki / Code blocks ─── */
+.code-block-wrapper {
+  @apply relative my-6 rounded-xl overflow-hidden border border-slate-800;
+}
+
+.code-block-header {
+  @apply flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800;
+}
+
+.code-block-lang {
+  @apply text-xs font-mono text-slate-400 uppercase tracking-widest;
+}
+
+[data-rehype-pretty-code-figure] {
+  @apply my-0;
+}
+
+[data-rehype-pretty-code-figure] pre {
+  @apply overflow-x-auto p-5 text-sm leading-relaxed;
+  background: #0d1117 !important;
+}
+
+[data-rehype-pretty-code-figure] code {
+  @apply font-mono text-sm;
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  color: inherit !important;
+}
+
+[data-line] { @apply px-0; }
+
+[data-highlighted-line] {
+  @apply bg-brand-950/60 border-l-2 border-brand-500 -mx-5 px-5;
+}
+
+/* ─── Mermaid diagrams ─── */
+.mermaid-wrapper {
+  @apply my-8 flex justify-center overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/50 p-6;
+}
+
+.mermaid-wrapper svg {
+  @apply max-w-full;
+}
+
+/* ─── Prose overrides ─── */
+.prose pre {
+  padding: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.prose :where(table):not(:where([class~="not-prose"] *)) {
+  @apply border border-slate-700 rounded-lg overflow-hidden;
+}
+
+.prose :where(th):not(:where([class~="not-prose"] *)) {
+  @apply bg-surface-700 px-4 py-2;
+}
+
+.prose :where(td):not(:where([class~="not-prose"] *)) {
+  @apply px-4 py-2;
+}
+
+/* ─── Callout components ─── */
+.callout {
+  @apply my-6 rounded-xl border px-5 py-4 flex gap-3 text-sm;
+}
+.callout-info    { @apply bg-brand-950/40 border-brand-800 text-brand-200; }
+.callout-warning { @apply bg-yellow-950/40 border-yellow-800 text-yellow-200; }
+.callout-danger  { @apply bg-red-950/40 border-red-800 text-red-200; }
+.callout-tip     { @apply bg-emerald-950/40 border-emerald-800 text-emerald-200; }
+
+/* ─── Gradient text ─── */
+.gradient-text {
+  @apply bg-gradient-to-r from-brand-400 via-accent-400 to-brand-300 bg-clip-text text-transparent;
+}
+
+/* ─── Ambient glow ─── */
+.ambient-glow {
+  background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(13, 139, 224, 0.15), transparent);
+}
+
+/* ─── Card hover effects ─── */
+.card-hover {
+  @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-900/30;
+}
+
+/* ─── TOC active highlight ─── */
+.toc-link-active {
+  @apply text-brand-400 font-medium;
+}
+
+/* ─── Selection color ─── */
+::selection {
+  @apply bg-brand-600/40 text-white;
+}
