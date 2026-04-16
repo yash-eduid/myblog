@@ -17,7 +17,7 @@ export default function AuthorCard() {
           Writing to make complex AI concepts accessible and actionable.
         </p>
         <div className="flex items-center gap-3">
-          <a href="https://github.com/yash-eduid" target="_blank" rel="noopener noreferrer"
+            <a href="https://github.com/imniteen" target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-brand-400 transition-colors">
             <Github className="w-4 h-4" /> GitHub
           </a>

@@ -60,7 +60,7 @@ export default function Navbar() {
             </Link>
           ))}
           <a
-            href="https://github.com/yash-eduid"
+            href="https://github.com/imniteen"
             target="_blank"
             rel="noopener noreferrer"
             className="ml-2 px-4 py-2 rounded-lg border border-slate-700 text-slate-300 hover:border-brand-700 hover:text-brand-300 text-sm font-medium transition-colors"
@@ -98,7 +98,7 @@ export default function Navbar() {
               </Link>
             ))}
             <a
-              href="https://github.com/yash-eduid"
+              href="https://github.com/imniteen"
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-3 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-surface-700 transition-colors"

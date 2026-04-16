@@ -42,7 +42,7 @@ export default function Footer() {
             <h3 className="text-slate-300 font-semibold text-sm mb-3">Find me</h3>
             <ul className="space-y-2">
               <li>
-                <a href="https://github.com/yash-eduid" target="_blank" rel="noopener noreferrer"
+                <a href="https://github.com/imniteen" target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2 text-slate-500 hover:text-brand-400 text-sm transition-colors">
                   <Github className="w-4 h-4" /> GitHub
                 </a>

@@ -36,7 +36,7 @@ export default function AboutPage() {
             to battle-tested production systems.
           </p>
           <div className="flex flex-wrap gap-3">
-            <a href="https://github.com/yash-eduid" target="_blank" rel="noopener noreferrer"
+            <a href="https://github.com/imniteen" target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white text-sm font-medium transition-colors">
               <Github className="w-4 h-4" /> GitHub
             </a>
@@ -95,7 +95,7 @@ export default function AboutPage() {
           {[
             { label: 'Articles Published', value: posts.length.toString() },
             { label: 'Topics Covered', value: String(new Set(posts.flatMap((p) => p.tags)).size) },
-            { label: 'Years in AI', value: '5+' },
+            // { label: 'Years in AI', value: '5+' },
           ].map((s) => (
             <div key={s.label} className="text-center p-6 rounded-xl border border-slate-800 bg-surface-800/30">
               <div className="text-3xl font-bold gradient-text mb-1">{s.value}</div>
